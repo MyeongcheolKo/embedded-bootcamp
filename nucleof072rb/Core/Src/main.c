@@ -91,6 +91,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI1_Init();
   MX_TIM2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   uint8_t recieved[3];
   uint8_t transmit[3];
@@ -103,26 +104,29 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
+  //initialize the timer
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  HAL_SPI_Init(&hspi1);
 	  // turn cs to low to start ADC
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 	  //send and recieve at the same time for 3 bytes
-	  HAL_SPI_TransmitReceive(&hspi1, transmit, recieved, 3, 10);
+	  HAL_SPI_TransmitReceive(&hspi1, transmit, recieved, sizeof(transmit), 100);
 	  //set CS to high to end communicating with the ADC
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
 
 	  // get recieved data from ADC
 	  int ADC_value = ((recieved[1] & 0b00000011) << 8) + recieved[2];
 	  //convert ADC value to duty cycle with range from 5-10%
-	  int duty_cycle = ADC_value / 1023 * (960000 * 0.1 - 960000 * 0.05)  + 960000 * 0.05;
+	  int counter_period = 960000;
+	  int adc_max = 1023;
+	  int duty_cycle = ADC_value / (adc_max * (counter_period * 0.1 - counter_period * 0.05))  + (counter_period * 0.05);
 
-	  //initialize the timer
-	  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
 	  //compare register with duty cycle value
 	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_cycle);
 
