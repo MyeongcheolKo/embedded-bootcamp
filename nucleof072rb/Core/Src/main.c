@@ -90,14 +90,13 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_SPI1_Init();
-  MX_TIM2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   uint8_t recieved[3];
   uint8_t transmit[3];
 
   transmit[0]= 0b00000001;
-  transmit[1]= 0b11000000;
+  transmit[1]= 0b10000000;
   transmit[2]= 0b00000000;
 
   /* USER CODE END 2 */
@@ -106,7 +105,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 
   //initialize the timer
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   while (1)
   {
     /* USER CODE END WHILE */
@@ -114,21 +113,28 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  // turn cs to low to start ADC
 	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+
 	  //send and recieve at the same time for 3 bytes
-	  HAL_SPI_TransmitReceive(&hspi1, transmit, recieved, sizeof(transmit), 100);
-	  //set CS to high to end communicating with the ADC
-	  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+	  HAL_StatusTypeDef status = HAL_SPI_TransmitReceive(&hspi1, transmit, recieved, sizeof(transmit), 100);
 
-	  // get recieved data from ADC
-	  int ADC_value = ((recieved[1] & 0b00000011) << 8) + recieved[2];
-	  //convert ADC value to duty cycle with range from 5-10%
-	  int counter_period = 960000;
-	  int adc_max = 1023;
-	  int duty_cycle = ADC_value / (adc_max * (counter_period * 0.1 - counter_period * 0.05))  + (counter_period * 0.05);
+	  if (status == HAL_OK){
+		  //set CS to high to end communicating with the ADC
+		  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+
+		  // get recieved data from ADC
+		  int ADC_value = ((recieved[1] & 0b00000011) << 8) + recieved[2];
+		  //convert ADC value to duty cycle with range from 5-10%
+		  int counter_period = 960000;
+		  int adc_max = 1023;
+		  int duty_cycle = ADC_value / (adc_max * (counter_period * 0.1 - counter_period * 0.05))  + (counter_period * 0.05);
 
 
-	  //compare register with duty cycle value
-	  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, duty_cycle);
+		  //compare register with duty cycle value
+		  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, duty_cycle);
+	  }
+	  else{
+		  HAL_UART_Transmit(&huart2, status, sizeof(status), 100);
+	  }
 
 	  HAL_Delay(10);
   }
